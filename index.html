@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Overwatch Style Arena</title>
+  <style>
+    :root {
+      --bg1: #0f172a;
+      --bg2: #111827;
+      --hud: rgba(15, 23, 42, 0.82);
+      --panel: rgba(30, 41, 59, 0.9);
+      --accent: #60a5fa;
+      --accent2: #38bdf8;
+      --red: #ef4444;
+      --green: #22c55e;
+      --gold: #fbbf24;
+      --white: #f8fafc;
+      --shadow: rgba(0, 0, 0, 0.35);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: radial-gradient(circle at top, #1e293b, var(--bg1) 50%, var(--bg2));
+      color: var(--white);
+      font-family: Arial, sans-serif;
+      overflow: hidden;
+    }
+
+    body {
+      display: grid;
+      place-items: center;
+    }
+
+    #game {
+      position: relative;
+      width: 1100px;
+      height: 650px;
+      max-width: 96vw;
+      max-height: 82vh;
+      background: linear-gradient(180deg, #0d1322, #111827);
+      border: 3px solid rgba(255,255,255,0.12);
+      border-radius: 18px;
+      box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+      overflow: hidden;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background:
+        linear-gradient(rgba(255,255,255,0.03), rgba(255,255,255,0.02)),
+        linear-gradient(90deg, rgba(96,165,250,0.08) 0 1px, transparent 1px),
+        linear-gradient(rgba(96,165,250,0.06) 0 1px, transparent 1px),
+        #0b1220;
+      background-size: auto, 40px 40px, 40px 40px, auto;
+    }
+
+    .hud {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      padding: 18px 22px;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--hud);
+      padding: 10px 16px;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      box-shadow: 0 10px 30px var(--shadow);
+    }
+
+    .team {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: bold;
+      letter-spacing: 1px;
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 5px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      background: rgba(96,165,250,0.15);
+      color: var(--accent2);
+      border: 1px solid rgba(96,165,250,0.35);
+    }
+
+    .score {
+      font-size: 28px;
+      font-weight: bold;
+      color: var(--white);
+      text-shadow: 0 0 15px rgba(255,255,255,0.2);
+    }
+
+    .center-info {
+      position: absolute;
+      left: 50%;
+      top: 18px;
+      transform: translateX(-50%);
+      text-align: center;
+      background: rgba(2,12,27,0.6);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 12px;
+      padding: 10px 16px;
+      font-size: 13px;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.9);
+    }
+
+    .player-panel {
+      position: absolute;
+      left: 20px;
+      bottom: 18px;
+      min-width: 240px;
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 12px;
+      padding: 12px 14px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+    }
+
+    .hero-name {
+      display: flex;
+      justify-content: space-between;
+      font-weight: bold;
+      margin-bottom: 10px;
+      color: var(--white);
+    }
+
+    .bar {
+      width: 100%;
+      height: 18px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.12);
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.1);
+      margin-bottom: 8px;
+    }
+
+    .fill {
+      height: 100%;
+      border-radius: inherit;
+      transition: width 0.12s ease;
+    }
+
+    .health { background: linear-gradient(90deg, #22c55e, #86efac); }
+    .energy { background: linear-gradient(90deg, #38bdf8, #7dd3fc); }
+
+    .ability-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .ability {
+      flex: 1;
+      height: 28px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      font-size: 12px;
+      font-weight: bold;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+      color: rgba(255,255,255,0.9);
+    }
+
+    .ability.ready {
+      background: linear-gradient(135deg, rgba(96,165,250,0.35), rgba(56,189,248,0.18));
+      border-color: rgba(96,165,250,0.5);
+      color: var(--white);
+    }
+
+    .reticle {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 22px;
+      height: 22px;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      opacity: 0.9;
+    }
+
+    .reticle::before,
+    .reticle::after {
+      content: "";
+      position: absolute;
+      background: rgba(255,255,255,0.8);
+      box-shadow: 0 0 10px rgba(96,165,250,0.5);
+    }
+
+    .reticle::before {
+      left: 50%;
+      top: 0;
+      width: 2px;
+      height: 100%;
+      transform: translateX(-50%);
+    }
+
+    .reticle::after {
+      top: 50%;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      transform: translateY(-50%);
+    }
+
+    .message {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      padding: 18px 26px;
+      font-size: 28px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      font-weight: bold;
+      background: rgba(9, 14, 24, 0.72);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 12px;
+      box-shadow: 0 15px 35px rgba(0,0,0,0.35);
+      opacity: 0;
+      transition: opacity 0.25s ease;
+      pointer-events: none;
+    }
+
+    .message.visible {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div id="game">
+    <canvas id="arena"></canvas>
+
+    <div class="hud">
+      <div class="topbar">
+        <div class="team">
+          <span class="tag">Blue Team</span>
+          <span>PHOENIX</span>
+        </div>
+        <div class="score"><span id="scoreBlue">3</span> : <span id="scoreRed">1</span></div>
+        <div class="team" style="justify-content:flex-end;">
+          <span>VOID</span>
+          <span class="tag" style="background: rgba(239,68,68,0.12); color: #fca5a5; border-color: rgba(239,68,68,0.35);">Red Team</span>
+        </div>
+      </div>
+
+      <div class="center-info">Capture Point — Sector 7</div>
+
+      <div class="player-panel">
+        <div class="hero-name">
+          <span>Tracer</span>
+          <span>Lv. 21</span>
+        </div>
+        <div class="bar"><div id="healthFill" class="fill health" style="width: 100%;"></div></div>
+        <div class="bar"><div id="energyFill" class="fill energy" style="width: 75%;"></div></div>
+        <div class="ability-row">
+          <div class="ability ready">Blink</div>
+          <div class="ability ready">Pulse</div>
+          <div class="ability">Ult</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="reticle" id="reticle"></div>
+    <div class="message" id="message">Objective secured</div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('arena');
+    const ctx = canvas.getContext('2d');
+
+    const scoreBlueEl = document.getElementById('scoreBlue');
+    const scoreRedEl = document.getElementById('scoreRed');
+    const healthFill = document.getElementById('healthFill');
+    const energyFill = document.getElementById('energyFill');
+    const messageEl = document.getElementById('message');
+
+    const keys = {};
+    const mouse = { x: 0, y: 0, down: false };
+
+    function resizeCanvas() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+    }
+
+    function clamp(value, min, max) {
+      return Math.min(Math.max(value, min), max);
+    }
+
+    function randomRange(min, max) {
+      return Math.random() * (max - min) + min;
+    }
+
+    const state = {
+      scoreBlue: 3,
+      scoreRed: 1,
+      kills: 0,
+      hero: {
+        x: 180,
+        y: 300,
+        radius: 18,
+        speed: 4.2,
+        health: 100,
+        energy: 75,
+        facing: 0,
+        cooldown: 0,
+        dashTimer: 0
+      },
+      enemies: [],
+      projectiles: [],
+      particles: [],
+      objective: {
+        x: 550,
+        y: 325,
+        radius: 75,
+        progress: 0
+      }
+    };
+
+    function spawnEnemy() {
+      state.enemies.push({
+        x: randomRange(700, canvas.width - 80),
+        y: randomRange(80, canvas.height - 80),
+        radius: 18,
+        health: 45,
+        speed: randomRange(1.2, 2.1),
+        cooldown: randomRange(0.7, 1.8),
+        color: '#ef4444'
+      });
+    }
+
+    function spawnParticles(x, y, color, amount = 18) {
+      for (let i = 0; i < amount; i++) {
+        state.particles.push({
+          x,
+          y,
+          vx: randomRange(-3, 3),
+          vy: randomRange(-3, 3),
+          life: randomRange(0.4, 0.9),
+          color
+        });
+      }
+    }
+
+    function fireProjectile() {
+      const hero = state.hero;
+      const dx = mouse.x - hero.x;
+      const dy = mouse.y - hero.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      const dirX = dx / dist;
+      const dirY = dy / dist;
+
+      state.projectiles.push({
+        x: hero.x + dirX * 20,
+        y: hero.y + dirY * 20,
+        vx: dirX * 8,
+        vy: dirY * 8,
+        radius: 5,
+        life: 1.8,
+        color: '#60a5fa'
+      });
+
+      hero.energy = clamp(hero.energy - 4, 0, 100);
+      energyFill.style.width = `${hero.energy}%`;
+    }
+
+    function explodeAt(x, y) {
+      spawnParticles(x, y, '#fbbf24', 12);
+      spawnParticles(x, y, '#60a5fa', 10);
+    }
+
+    function showMessage(text) {
+      messageEl.textContent = text;
+      messageEl.classList.add('visible');
+      clearTimeout(showMessage.timer);
+      showMessage.timer = setTimeout(() => {
+        messageEl.classList.remove('visible');
+      }, 1000);
+    }
+
+    function updateHero() {
+      const hero = state.hero;
+      let moveX = 0;
+      let moveY = 0;
+      if (keys['w'] || keys['W'] || keys['ArrowUp']) moveY -= 1;
+      if (keys['s'] || keys['S'] || keys['ArrowDown']) moveY += 1;
+      if (keys['a'] || keys['A'] || keys['ArrowLeft']) moveX -= 1;
+      if (keys['d'] || keys['D'] || keys['ArrowRight']) moveX += 1;
+
+      const len = Math.hypot(moveX, moveY) || 1;
+      hero.x += (moveX / len) * hero.speed;
+      hero.y += (moveY / len) * hero.speed;
+
+      hero.x = clamp(hero.x, hero.radius + 10, canvas.width - hero.radius - 10);
+      hero.y = clamp(hero.y, hero.radius + 10, canvas.height - hero.radius - 10);
+
+      const dx = mouse.x - hero.x;
+      const dy = mouse.y - hero.y;
+      hero.facing = Math.atan2(dy, dx);
+
+      if (mouse.down && hero.energy > 0) {
+        if (hero.cooldown <= 0) {
+          fireProjectile();
+          hero.cooldown = 0.15;
+        }
+      }
+
+      hero.cooldown = Math.max(0, hero.cooldown - 0.016);
+      hero.energy = clamp(hero.energy + 0.22, 0, 100);
+      energyFill.style.width = `${hero.energy}%`;
+    }
+
+    function updateEnemies() {
+      const hero = state.hero;
+      for (const enemy of state.enemies) {
+        const dx = hero.x - enemy.x;
+        const dy = hero.y - enemy.y;
+        const dist = Math.hypot(dx, dy) || 1;
+        enemy.x += (dx / dist) * enemy.speed;
+        enemy.y += (dy / dist) * enemy.speed;
+
+        enemy.cooldown -= 0.016;
+        if (enemy.cooldown <= 0 && dist < 240) {
+          const projX = enemy.x + (dx / dist) * 18;
+          const projY = enemy.y + (dy / dist) * 18;
+          state.projectiles.push({
+            x: projX,
+            y: projY,
+            vx: (dx / dist) * 5.2,
+            vy: (dy / dist) * 5.2,
+            radius: 5,
+            life: 2.2,
+            color: '#f87171'
+          });
+          enemy.cooldown = randomRange(1.1, 2.3);
+        }
+      }
+    }
+
+    function updateProjectiles() {
+      for (let i = state.projectiles.length - 1; i >= 0; i--) {
+        const p = state.projectiles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life -= 0.016;
+
+        if (p.life <= 0 || p.x < 0 || p.y < 0 || p.x > canvas.width || p.y > canvas.height) {
+          state.projectiles.splice(i, 1);
+          continue;
+        }
+
+        if (p.color === '#60a5fa') {
+          for (const enemy of state.enemies) {
+            const dist = Math.hypot(p.x - enemy.x, p.y - enemy.y);
+            if (dist < p.radius + enemy.radius) {
+              enemy.health -= 18;
+              explodeAt(p.x, p.y);
+              state.projectiles.splice(i, 1);
+
+              if (enemy.health <= 0) {
+                state.kills += 1;
+                state.enemies.splice(state.enemies.indexOf(enemy), 1);
+                state.scoreBlue += 1;
+                scoreBlueEl.textContent = state.scoreBlue;
+                showMessage('Target eliminated');
+              }
+              break;
+            }
+          }
+        } else {
+          const hero = state.hero;
+          const dist = Math.hypot(p.x - hero.x, p.y - hero.y);
+          if (dist < p.radius + hero.radius) {
+            hero.health = clamp(hero.health - 8, 0, 100);
+            healthFill.style.width = `${hero.health}%`;
+            explodeAt(p.x, p.y);
+            state.projectiles.splice(i, 1);
+
+            if (hero.health <= 0) {
+              state.scoreRed += 1;
+              scoreRedEl.textContent = state.scoreRed;
+              showMessage('You were defeated');
+              resetGame(false);
+            }
+          }
+        }
+      }
+    }
+
+    function updateObjective() {
+      const hero = state.hero;
+      const dx = hero.x - state.objective.x;
+      const dy = hero.y - state.objective.y;
+      const dist = Math.hypot(dx, dy);
+
+      if (dist < state.objective.radius + hero.radius) {
+        state.objective.progress = clamp(state.objective.progress + 0.02, 0, 100);
+        if (state.objective.progress >= 100) {
+          state.scoreBlue += 1;
+          scoreBlueEl.textContent = state.scoreBlue;
+          showMessage('Objective secured');
+          state.objective.progress = 0;
+          state.objective.x = randomRange(220, canvas.width - 220);
+          state.objective.y = randomRange(120, canvas.height - 120);
+        }
+      }
+    }
+
+    function updateParticles() {
+      for (let i = state.particles.length - 1; i >= 0; i--) {
+        const p = state.particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life -= 0.016;
+
+        if (p.life <= 0) {
+          state.particles.splice(i, 1);
+        }
+      }
+    }
+
+    function resetGame(keepScores = true) {
+      if (!keepScores) {
+        state.scoreBlue = 3;
+        state.scoreRed = 1;
+        scoreBlueEl.textContent = state.scoreBlue;
+        scoreRedEl.textContent = state.scoreRed;
+      }
+
+      state.hero.x = 180;
+      state.hero.y = 300;
+      state.hero.health = 100;
+      state.hero.energy = 75;
+      healthFill.style.width = '100%';
+      energyFill.style.width = '75%';
+
+      state.enemies = [];
+      for (let i = 0; i < 5; i++) {
+        spawnEnemy();
+      }
+    }
+
+    function drawHero() {
+      const hero = state.hero;
+      ctx.save();
+      ctx.translate(hero.x, hero.y);
+      ctx.rotate(hero.facing);
+
+      ctx.fillStyle = '#60a5fa';
+      ctx.beginPath();
+      ctx.arc(0, 0, hero.radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#dbeafe';
+      ctx.fillRect(8, -4, 20, 8);
+      ctx.restore();
+    }
+
+    function drawEnemies() {
+      for (const enemy of state.enemies) {
+        ctx.fillStyle = '#ef4444';
+        ctx.beginPath();
+        ctx.arc(enemy.x, enemy.y, enemy.radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#fecaca';
+        ctx.fillRect(enemy.x - 10, enemy.y - 28, 20, 5);
+      }
+    }
+
+    function drawProjectiles() {
+      for (const p of state.projectiles) {
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function drawObjective() {
+      const obj = state.objective;
+      ctx.fillStyle = 'rgba(251, 191, 36, 0.16)';
+      ctx.beginPath();
+      ctx.arc(obj.x, obj.y, obj.radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = '#fbbf24';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(obj.x, obj.y, obj.radius, 0, Math.PI * 2);
+      ctx.stroke();
+
+      const progress = (obj.progress / 100) * 360;
+      ctx.strokeStyle = '#facc15';
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.arc(obj.x, obj.y, obj.radius - 12, -Math.PI / 2, -Math.PI / 2 + (progress * Math.PI / 180));
+      ctx.stroke();
+    }
+
+    function drawParticles() {
+      for (const p of state.particles) {
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = Math.max(0, p.life);
+        ctx.fillRect(p.x, p.y, 4, 4);
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawObjective();
+      drawProjectiles();
+      drawEnemies();
+      drawHero();
+      drawParticles();
+    }
+
+    function tick() {
+      updateHero();
+      updateEnemies();
+      updateProjectiles();
+      updateParticles();
+      updateObjective();
+      draw();
+      requestAnimationFrame(tick);
+    }
+
+    window.addEventListener('keydown', (e) => {
+      keys[e.key] = true;
+      if (e.key === ' ') {
+        e.preventDefault();
+        if (state.hero.energy >= 20) {
+          state.hero.energy = clamp(state.hero.energy - 20, 0, 100);
+          state.hero.speed = 6.5;
+          setTimeout(() => { state.hero.speed = 4.2; }, 250);
+          showMessage('Ability: Dash');
+          energyFill.style.width = `${state.hero.energy}%`;
+        }
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      keys[e.key] = false;
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      mouse.x = e.clientX - rect.left;
+      mouse.y = e.clientY - rect.top;
+    });
+
+    canvas.addEventListener('mousedown', () => { mouse.down = true; });
+    window.addEventListener('mouseup', () => { mouse.down = false; });
+
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    resetGame();
+    for (let i = 0; i < 5; i++) spawnEnemy();
+    tick();
+  </script>
+</body>
+</html>
